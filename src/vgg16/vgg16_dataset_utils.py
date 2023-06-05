@@ -170,21 +170,24 @@ def debug_dataset(dataset, conf):
         dataset,
         'unseen',
         'Class distribution of train dataset',
+        conf
     )
     plot_occurrences(
         "eval_occurrences",
         dataset,
         'test',
         'Class distribution of eval dataset',
+        conf
     )
     plot_occurrences(
         "vali_occurrences",
         dataset,
         'vali',
         'Class distribution of eval dataset',
+        conf
     )
 
-def plot_occurrences(fig_name, dataset, dataset_name, title):
+def plot_occurrences(fig_name, dataset, dataset_name, title, conf):
     
     # Count occurrences of each class
     plt.figure(fig_name)
@@ -193,6 +196,8 @@ def plot_occurrences(fig_name, dataset, dataset_name, title):
     plt.title(title)
     plt.xlabel('Class')
     plt.ylabel('Occurrences')
+    plt.ylim(0, 100)
+    plt.suptitle(f"{conf['datamix']} dataset", weight='bold')
     plt.show(block=False)
 
     return result

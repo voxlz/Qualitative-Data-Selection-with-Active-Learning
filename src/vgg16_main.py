@@ -54,10 +54,10 @@ def main(save_baseline=True):
     ]
 
     conf = {
-        "n_unseen"    : 50,   # ~80% of the dataset
-        "n_vali"      : 20,   # ~10% of the dataset 
-        "n_test"      : 20,   # ~10% of the dataset
-        "n_base"      : 10,    # base training set
+        "n_unseen"    : 9998,   # ~80% of the dataset
+        "n_vali"      : 1,   # ~10% of the dataset 
+        "n_test"      : 1,   # ~10% of the dataset
+        "n_base"      : 0,    # base training set
         "use_weights" : True,   # Use imagenet weights
         "n_batch"     : 5, 
         "datamix"     : Datamix.mixed,
