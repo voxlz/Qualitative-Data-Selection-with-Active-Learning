@@ -6,9 +6,6 @@ from scipy import stats
 def print_export_auc_table(processed_data, metric_keys):    #area_under_curve):
     '''Print and export the area under the curve table for all evaluation metrics'''
 
-    # processed_data[prio_func][data_set][metric] = {
-
-
     print("\nArea under curve (higher is better)")
     values = []
     methods_keys = processed_data.keys()

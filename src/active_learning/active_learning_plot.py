@@ -388,13 +388,14 @@ def plot_epochs_separate(suptitle, info, prio_func, data_set, metric, xs, epochs
     elif suptitle:
         plt.suptitle(suptitle, weight='bold')
 
-def plot_optopsy_files(history_rel_paths, prio_fns, plot_metrics=None, eval_baseline=None, use_standard_deviation=False):
-    ''' Plots the optopsy files in the given list of paths. Produces a plot for mAP50 and AP50.
-        If multiple files have the same selection method, they are plotted together as average + range.
+def plot_OD_metrics(history_rel_paths, prio_fns, plot_metrics=None, eval_baseline=None, use_standard_deviation=False):
+    ''' Plots files containing OD metrics in the given list of paths. Produces a plot for mAP50 and AP50.
+        If multiple files have the same selection method, they are plotted together as average + std deviation range.
         Supports including values from initial evaluation of baseline.
     '''
 
     '''
+    Example: 
     {
         random: {
             mAP50: {
