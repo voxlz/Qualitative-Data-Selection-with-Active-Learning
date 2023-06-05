@@ -8,7 +8,6 @@ from tqdm import tqdm
 from collections import defaultdict
 from active_learning.active_learning_methods import diversity_sampling, entropy_uncert, least_conf_uncert, margin_conf_uncert
 from unused.ssd_code.eval import get_predictions
-from utils.docker_utils import is_docker
 from PIL import Image
 from utils.ssd_utils import batch_dataset, dataset_to_ground_truth, get_coco_raw, get_subset_dataset, get_subsets_dataset, preprocess_coco
 from utils.tf_utils import imagenet_decode_predictions
@@ -193,31 +192,17 @@ def save_top_imgs(unseen_data, save_dir, AL_loop, selection, n_imgs=100):
 def save_img(save_dir, AL_loop, unseen_data, name, order):
     data, _     = get_subsets_dataset(unseen_data, order)
     
-    if not is_docker(): # Classification
-        
-        for i, (x, y) in enumerate(data):
-            img = deprocess_np_img(x.numpy())
-            img = Image.fromarray(img)
-                            
-            if not is_docker():
-                label = y.numpy()
-                with open("dataset_labels/imagenet_class_index.json") as f:
-                    CLASS_INDEX = json.load(f)
-            else: CLASS_INDEX = None
-                
-            os.makedirs(save_dir, exist_ok=True)
-            class_label = CLASS_INDEX[str(label)][1] if CLASS_INDEX is not None else ""
-            img.save(os.path.join(save_dir, "%d_%s_%d_%s.png" % (AL_loop, name, i, class_label)))
+    for i, (x, y) in enumerate(data):
+        img = deprocess_np_img(x.numpy())
+        img = Image.fromarray(img)
+                        
+        label = y.numpy()
+        with open("dataset_labels/imagenet_class_index.json") as f:
+            CLASS_INDEX = json.load(f)
             
-    else: # Object Detection
-        for i, (x, y) in enumerate(data):
-            arr = x.numpy() 
-            arr += 1
-            arr *= 127.5
-            arr = np.squeeze(arr).astype(np.uint8)
-            img = Image.fromarray(arr)
-            os.makedirs(save_dir, exist_ok=True)
-            img.save(os.path.join(save_dir, "%d_%s_%d.png" % (AL_loop, name, i)))
+        os.makedirs(save_dir, exist_ok=True)
+        class_label = CLASS_INDEX[str(label)][1] if CLASS_INDEX is not None else ""
+        img.save(os.path.join(save_dir, "%d_%s_%d_%s.png" % (AL_loop, name, i, class_label)))
 
 def uncertainty_sampling(prio, unseen_data, n_batch, n_unseen, n_labels, y_pred, model_post_proc=None, get_od_loss=None):
     p = prio
