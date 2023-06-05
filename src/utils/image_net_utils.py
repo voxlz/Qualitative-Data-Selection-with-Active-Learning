@@ -26,7 +26,7 @@ def prep_budget(budget, n_unseen, rnd_budget, n_batch, n_epoch):
     
     for b in budget:
         assert b % n_batch  == 0, "budget values must be divisible by n_batch."
-        if (n_epoch != 0 and n_epoch != 1000): 
+        if n_epoch not in [0, 1000]: 
             # If not using early-stop or 0 epochs
             assert b % n_epoch == 0 or n_epoch % b == 0 , "budget values must be divisible by n_epoch."
   

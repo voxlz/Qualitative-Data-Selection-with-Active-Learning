@@ -18,7 +18,7 @@ SGD                     = tf.keras.optimizers.SGD
 
 # Configure object detection
 train_model     = False # otherwise load model
-train_oracle    = False    
+train_oracle    = False
 evaluate_oracle = False
 oracle_sample   = False
 visualize_model = False
@@ -49,7 +49,7 @@ if train_model:
     dt_str = now.strftime("%d-%m-%Y_%H-%M-%S")
     out_path = os.path.join(os.getcwd(), 'weights', dt_str)
     os.makedirs(out_path, exist_ok=True)
-    
+
     # Train
     train(model, optimizer, coco_train, out_path, n_imgs=1000, batch_size=20, n_epoch=20, inter_save=1)
 else:
@@ -72,14 +72,14 @@ else:
             scores, offsets = model(images)
             loss.append(model.get_loss(scores, scores_gt, offsets, offsets_gt))
             imgs.append(images)
-        
+
         loss = tf.concat(loss, axis=0)
         imgs = tf.concat(imgs, axis=0)
         loss = loss / 0.19358322
         # print(tf.reduce_mean(loss))
-                
+
         oracle.fit(imgs, loss, epochs=10, batch_size=batch_size)
-        oracle.save_weights(str(oracle_img_n) + "test_oracle_weights.h5")
+        oracle.save_weights(f"{oracle_img_n}test_oracle_weights.h5")
         # oracle.evaluate(imgs, loss)
     elif evaluate_oracle: 
         oracle.build((None, input_shape[0], input_shape[1], input_shape[2]))
@@ -94,25 +94,25 @@ else:
         y_gt = loss / 0.19358322
         y    = oracle(images)
         oracle.evaluate(images, y_gt)
-        
+
         # Sanity check inference
         sanity_loss = tf.keras.losses.mean_absolute_error(y_gt, y)
         print(sanity_loss.numpy())
-        
+
     elif oracle_sample: # Get sample from oracle for new training
         oracle.build((None, input_shape[0], input_shape[1], input_shape[2]))
         oracle.load_weights("500test_oracle_weights.h5")
-        
+
         n_imgs = 50
         n_sample = 50
-        
+
         dataset = coco_sample.take(n_imgs)
         data_sample = get_sample_oracle(oracle, dataset, n_sample, default_boxes)
- 
+
         new_dataset = coco_train.concatenate(data_sample) # adds data_sample to end of coco_train
-        
+
         # ----------------------------- NEW TRAINING -----------------------------
-        
+
         # Training params
         lr_decay = PiecewiseConstantDecay(boundaries=[80000, 10000, 120000], values=[0.001, 0.0005, 0.0001, 0.00005])
         optimizer = SGD(learning_rate=lr_decay, momentum=0.9)
@@ -122,18 +122,18 @@ else:
         dt_str = now.strftime("NEW%d-%m-%Y_%H-%M-%S")
         out_path = os.path.join(os.getcwd(), 'weights', dt_str)
         os.makedirs(out_path, exist_ok=True)
-        
+
         new_model = SSD300(num_class=80, input_shape=input_shape)
         new_model(tf.ones([1, input_shape[0], input_shape[1], input_shape[2]], tf.int16))
-        
+
         # Train
         new_dataset = coco_train.take(1000).concatenate(data_sample)
         train(new_model, optimizer, new_dataset, out_path, n_imgs=1000+n_sample, batch_size=10, n_epoch=20, inter_save=1)
-        
-    
+
+
 # Validation
 if visualize_model:
-    
+
     label_names         = open("dataset_labels/coco_class_labels.txt").read().splitlines()
     batch_0             = batch_dataset(coco_validation, batch=5)[0]
     _, default_boxes    = model.get_default_boxes()
@@ -146,14 +146,14 @@ if calc_confidence:
     n_sample = 50
     batch = 5
     data_sample, img_sort_order, img_uncertainty = get_sample_confidence(model, coco_validation, n_sample, batch)
-    
+
     batches = batch_dataset(coco_validation, batch=batch)
     imgs_ref = []
     for batch in tqdm(batches, desc="Extracting images", position=0):
         images, bboxes, labels             = get_coco_raw(batch)
         images, _, _, images_ref = preprocess_coco(images, bboxes, labels)
         imgs_ref.append(images_ref)
-        
+
     imgs_ref = [img_ref for sublist in imgs_ref for img_ref in sublist] # flatten image list
 
     for idx in img_sort_order[:10]: 

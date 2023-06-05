@@ -32,9 +32,9 @@ def train(model, optimizer, train_ds, weights_path, n_imgs=10, batch_size=10, n_
     # Shuffle, take, and batch dataset
     train_ds = train_ds.take(n_imgs)
     train_ds = [x for x in train_ds]  # load in dataset to memory, so it can be shuffled
-    
+
     print("Started training!")
-    
+
     for epoch in _tqdm(range(n_epoch)):
         losses = []
 
@@ -48,12 +48,12 @@ def train(model, optimizer, train_ds, weights_path, n_imgs=10, batch_size=10, n_
             # get data from batch
             a1 = time.time()
             imgs, scores, offsets, _ = dataset_to_ground_truth(batch, default_boxes, input_shape)
-            print("Time to get ground truth: {}".format(time.time() - a1))
+            print(f"Time to get ground truth: {time.time() - a1}")
 
             # get predictions and losses
             a2 = time.time()
             with tf.GradientTape() as tape:
-                
+
                 # Forward pass
                 p_scores, p_offsets = model(imgs)
 
@@ -63,22 +63,22 @@ def train(model, optimizer, train_ds, weights_path, n_imgs=10, batch_size=10, n_
                 # L2 regularization ???
                 l2 = [tf.nn.l2_loss(t).numpy() for t in model.trainable_variables]
                 model_loss = model_loss + 0.001 * tf.math.reduce_sum(l2)
-                
+
                 # if (model_loss > 1000):
                 #     print("Loss is too high: {}".format(model_loss))
                 losses.append(model_loss)
-            print("Time to record tape: {}".format(time.time() - a2))
-    
+            print(f"Time to record tape: {time.time() - a2}")
+
             # back propagation (outside with-block according to convention) 
             a3 = time.time()
             grads = tape.gradient(model_loss, model.trainable_variables)
             optimizer.apply_gradients(zip(grads, model.trainable_variables))
-            print("Time to calc and apply gradients: {}".format(time.time() - a3))
+            print(f"Time to calc and apply gradients: {time.time() - a3}")
 
-        print("Mean loss: {} on epoch {}".format(np.mean(losses), epoch))
+        print(f"Mean loss: {np.mean(losses)} on epoch {epoch}")
         if epoch % inter_save == 0 and epoch > 0:
             path = os.path.join(weights_path, "ssd_weights_epoch_{:03d}.h5".format(epoch))
             print(path)
             model.save_weights(path)
-            
+
     print("Done training!")
