@@ -95,7 +95,7 @@ def select_samples_with_prio(
     AL_loop=-1, 
     sel_pivot: float = 0,
     save_imgs: bool = False,
-    save_top_x_imgs: bool = False,
+    save_top_x_imgs: int = 0,
     n_unseen: int = None,
     diversity: int = 0,
 ):
@@ -103,14 +103,24 @@ def select_samples_with_prio(
 
     Args:
     - prio: string indicating which prioritization function to use
-    - orc_train_ds: tf.data.Dataset with (x, y) pairs used to train the oracle model
+    - unssen_data: data pool to make the seleciton from
+    - budget: refers to how many data to include in the selection
+    - n_batch: batch size
+    - model: current model used
+    - model_post_proc: if using an OD model, then this is the same model with post processing applied
+    - save_dir: save location
+    - AL_loop: the current outer loop number
+    - sel_pivot: float value between 0-1, works as an anchorpoint for the selection. 0 pick the hardest and 1 the easiest
+    - save_imgs: if selected images should be saved
+    - save_top_x_imgs: how many top images to save, if 0 none will be saved
+    - n_unseen: how many data in the unseen_data pool
+    - diversity: if 0 no diversity selction, otherwise will diversify the selction with this number per class 
 
     Returns:
     - data_samples: tf.data.Dataset with selected images
     - unseen_data: tf.data.Dataset with remaining images'''
 
-
-    def get_od_loss(x, y):
+    def get_od_loss(x, y): # used with OD model, makes use of the model's compiled loss functions
         ''' Given a batched dataset with (x, y) pairs, return batched loss'''
         y_pred = model(x)
         loss_dict = model.compiled_loss._losses
@@ -121,7 +131,6 @@ def select_samples_with_prio(
         loss = tf.reduce_sum(losses, axis=-1)
         loss = tf.keras.activations.sigmoid(loss/17-4)
         return loss
-
 
     # Get predictions
     selection = get_selection(prio, budget, unseen_data, model, n_batch, n_unseen, sel_pivot, diversity, model_post_proc, get_od_loss)
@@ -137,13 +146,12 @@ def select_samples_with_prio(
     return get_subsets_dataset(unseen_data, selection)
 
 def get_selection(prio, budget, unseen_data, model, n_batch, n_unseen, sel_pivot=0, diversity=0, model_post_proc=None, get_od_loss=None):
-    if model_post_proc:
+    if model_post_proc: # Object Detection
         y_pred      = model_post_proc.predict(unseen_data.batch(n_batch))
         n_labels    = 8
     else:
-        y_pred      = model.predict(unseen_data.batch(n_batch)) # [unseen_count, n_labels]
+        y_pred      = model.predict(unseen_data.batch(n_batch))
         n_labels    = y_pred.shape[1]
-    
 
     prio_order = uncertainty_sampling(prio, unseen_data, n_batch, n_unseen, n_labels, y_pred, model_post_proc, get_od_loss)
 
@@ -223,21 +231,9 @@ def uncertainty_sampling(prio, unseen_data, n_batch, n_unseen, n_labels, y_pred,
             losses     = (get_od_loss(x, y) for x, y in tqdm(unseen_data.batch(n_batch), desc="Converting losses"))
             losses     = [loss for sublist in losses for loss in sublist]
         else: # Classification
-            
             # Batch predictions
             pred_tens = tf.convert_to_tensor(y_pred)
             pred_tens = tf.reshape(y_pred, (int(y_pred.shape[0] / n_batch), n_batch, n_labels))
-            
-            # @tf.function
-            # def get_classification_loss(x, y):
-            #     ''' Given a batched dataset with (x, y) pairs, return batched loss'''
-            #     loss_fn = tf.losses.SparseCategoricalCrossentropy(reduction='none')
-            #     y_pred = model(x)
-            #     return loss_fn(y, y_pred)
-            # losses     = unseen_data.batch(n_batch).map(
-            #     get_classification_loss_v2, 
-            #     num_parallel_calls=16 # Autotune seems to crash ram... Keep it fixed for now
-            # ).unbatch()
             
             loss_fn = tf.losses.SparseCategoricalCrossentropy(reduction='none')
             @tf.function
@@ -245,13 +241,9 @@ def uncertainty_sampling(prio, unseen_data, n_batch, n_unseen, n_labels, y_pred,
                 ''' Given a batched dataset with (x, y) pairs, return batched loss'''
                 return loss_fn(xy[1], pred_tens[i])
             
-            # i, xy = next(iter(unseen_data.batch(n_batch).enumerate()))
-            # loss = loss_fn(xy[1], y_pred[i])
-            # print()
-            
             losses = unseen_data.batch(n_batch).enumerate().map(
                 get_classification_loss_v2, 
-                num_parallel_calls=16 # Autotune seems to crash ram... Keep it fixed for now
+                num_parallel_calls=16
             ).unbatch()
 
             losses  = tqdm(losses, desc="Extracting losses", total=n_unseen)
@@ -294,46 +286,3 @@ def select_with(pred_to_uncert_fn, y_pred, n_labels: int = 1000, model_post_proc
     assert uncertainty[prio_order[0]] == max(uncertainty)
 
     return prio_order
-
-
-    # elif p == 'oracle':
-    #     assert orc_train_ds is not None
-    #     local_val  = orc_train_ds.batch(n_batch).map(get_classification_loss)
-    #     # local_val  = local_val.map(normalize_oracle_batch_input)
-    #     local_val  = local_val.shuffle(1000)
-    #     prio_order = sel_with_oracle(model, local_val, unseen_data, budget, n_batch)
-    # elif p == 'oracle_diversity':
-    #     assert orc_train_ds is not None
-
-    #     local_val = orc_train_ds.map(get_img_loss)
-    #     seen_data = None
-
-    #     n_oracle_sel = 5
-    #     n_inner      = int(budget / n_oracle_sel)
-
-    #     for _ in range(n_oracle_sel):
-
-    #         # Select n_inner images with oracle
-    #         oracle = Oracle(model)
-    #         _      = oracle.fit(local_val.batch(n_batch), epochs=3) # TODO: FIT BROKE, TRAINING LOSS GROWING?
-    #         y_pred = oracle.predict(unseen_data.batch(n_batch))
-    #         prio_order = tf.argsort(y_pred, axis=0, direction='DESCENDING').numpy()[:n_inner]
-
-    #         # Add selected images + their loss to validation dataset
-    #         y_pred    = Dataset.from_tensor_slices(y_pred)
-    #         zipped    = Dataset.zip((unseen_data, y_pred))
-    #         ds_unseen = zipped.map(lambda xy, loss : (xy[0], loss))
-    #         a = time.time()       
-    #         ds_unseen = get_subset_dataset(ds_unseen, prio_order)
-    #         print("Time to get subset: ", time.time() - a)
-    #         # a = time.time()       
-    #         # # ds_unseen = tf.data.experimental.choose_from_datasets(ds_unseen, prio_order)
-    #         # print("Time to choose_from_dataset: ", time.time() - a)
-
-    #         local_val = local_val.concatenate(ds_unseen)
-
-    #         # Remove selected from unseen dataset
-    #         sample_data, unseen_data = get_subsets_dataset(unseen_data, prio_order)
-    #         seen_data = sample_data if seen_data is None else seen_data.concatenate(sample_data)
-
-    #     return seen_data, unseen_data

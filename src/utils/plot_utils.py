@@ -26,27 +26,7 @@ def get_history_files_from_tests(test_dirs):
                 
     return history_files, eval_base
 
-def get_optopsy_files_from_logs_old(log_dirs, nbr_epoch):
-    '''For each test directory, loop though the test directory, go into the method folders, and select the last history file. Return a list of history files.'''
-    eval_files = []
-    for log_dir in log_dirs:
-        for method_dir in os.listdir(log_dir):
-            method_files = []
-            for loop_dir in os.listdir(os.path.join(log_dir, method_dir)):
-                if os.path.isdir(os.path.join(log_dir, method_dir, loop_dir, 'optopsy_eval')):
-                    eval_file = os.path.join(
-                        log_dir,
-                        method_dir,
-                        loop_dir,
-                        'optopsy_eval',
-                        f"results_epoch_{nbr_epoch}.json",
-                    )
-                    if os.path.isfile(eval_file):
-                        method_files.append(eval_file)
-            eval_files.append(method_files)
-    return eval_files
-
-def get_optopsy_files_from_logs_new(log_dirs):
+def get_OD_metrics_files_from_logs(log_dirs):
     '''For each test directory, loop though the test directory, go into the method folders, and select the last history file. Return a list of history files.'''
     eval_files = []
     method_names = []

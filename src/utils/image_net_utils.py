@@ -30,7 +30,4 @@ def prep_budget(budget, n_unseen, rnd_budget, n_batch, n_epoch):
             # If not using early-stop or 0 epochs
             assert b % n_epoch == 0 or n_epoch % b == 0 , "budget values must be divisible by n_epoch."
   
-    # test = list(accumulate(budget_schedule, lambda x, y: x - y, initial=n_unseen))
-    # map(lambda budget: budget  n_batch, budget_schedule)
-  
     return budget_schedule

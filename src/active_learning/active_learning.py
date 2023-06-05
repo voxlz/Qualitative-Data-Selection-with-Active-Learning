@@ -30,8 +30,8 @@ def active_learning(
     log_dir         : str               = None,
     weight_dir      : str               = None,
     extra_callbacks : List[Callback]    = None,
-    eval_dir        : str               = None,
-    eval_fn         : functools.partial = None,
+    eval_dir        : str               = None,             # Used with an OD model
+    eval_fn         : functools.partial = None,             # Used with an OD model
     sel_pivot       : float             = 0,
     budget          : int or List[int]  = 500,
     n_epoch         : int               = 5,
@@ -40,9 +40,9 @@ def active_learning(
     fixed_steps     : bool              = False,            # Use fixed steps per epoch
     diversity       : int               = 0,                # Enable diversity sampling
     datamix         : Datamix           = Datamix.undefined,
-    n_prune         : int               = 0, # Remove hardest images from training set after training on them
-    accumulate      : bool              = True, # Accumulate data into seen_data from previous training steps
-    n_base          : int               = 0, # Number of base samples to use
+    n_prune         : int               = 0,                # Remove hardest images from training set after training on them
+    accumulate      : bool              = True,             # Accumulate data into seen_data from previous training steps
+    n_base          : int               = 0,                # Number of base samples to use
 ):
     ''' Active learning loop. Used to simulate active learning with human labeling or virtual data synthesis.
         Make sure model expects the input shape of dataset.'''
@@ -126,11 +126,10 @@ def active_learning(
             callbacks = [tensorboard_callback]
 
         # Train and evaluate
-        # If 8000 images, fix epoch step to see 4000 images per epoch
         half_loops = n_loops // 2
         step_per_epoch = int(budget[i]*half_loops/n_batch)
         buff = sum(budget[:i+1])
-        train_data = seen_data.shuffle(buffer_size=(buff+n_base)) # Hur tänker du här?
+        train_data = seen_data.shuffle(buffer_size=(buff+n_base))
         train_data = train_data.repeat() if fixed_steps else train_data
         train_result = model.fit(
             train_data.batch(n_batch).prefetch(4),
@@ -156,8 +155,8 @@ def active_learning(
         })
 
         loop_str = "loop %d" % (i)
-        if model_post_proc is not None:
-            tf.keras.backend.clear_session()  # Needed when doing several evaluations in a row
+        if model_post_proc is not None: # Object Detection, save OD metrics
+            tf.keras.backend.clear_session() 
             print("Evaluating...")
             eval_fn((eval_dir/ loop_str))
             print("Done evaluating.")
